@@ -36,19 +36,15 @@ export default function App() {
   const [filterParams, setFilterParams] = useState(DEFAULT_FILTER);
   const [signalParams, setSignalParams] = useState(DEFAULT_SIGNAL);
 
-  const [preTime, setPreTime] = useState<Float32Array<ArrayBufferLike>>(
+  const [analyserTime, setAnalyserTime] = useState<Float32Array<ArrayBufferLike>>(
     () => new Float32Array(2048)
   );
-  const [postTime, setPostTime] = useState<Float32Array<ArrayBufferLike>>(
-    () => new Float32Array(2048)
-  );
-  const [postFreq, setPostFreq] = useState<Uint8Array<ArrayBufferLike>>(
+  const [analyserFreq, setAnalyserFreq] = useState<Uint8Array<ArrayBufferLike>>(
     () => new Uint8Array(1024)
   );
 
   const sampleRate = engineRef.current?.sampleRate ?? 44100;
 
-  // Design all three families with shared order/type/cutoff
   const allDesigns = useMemo(() => {
     const results: { family: FilterFamily; result: FilterDesignResult }[] =
       [];
@@ -75,11 +71,9 @@ export default function App() {
   useAnimationFrame(() => {
     const engine = engineRef.current;
     if (!engine) return;
-    const pre = engine.getPreAnalyserData();
-    const post = engine.getPostAnalyserData();
-    setPreTime(pre.time);
-    setPostTime(post.time);
-    setPostFreq(post.freq);
+    const analyser = engine.getAnalyserData();
+    setAnalyserTime(analyser.time);
+    setAnalyserFreq(analyser.freq);
   }, isRunning);
 
   const handleToggle = useCallback(async () => {
@@ -196,8 +190,7 @@ export default function App() {
         <main>
           <div className="plot-row">
             <TimeDomainPlot
-              preData={preTime}
-              postData={postTime}
+              analyserData={analyserTime}
               width={620}
               height={220}
             />
@@ -207,7 +200,7 @@ export default function App() {
             <FrequencyDomainPlot
               traces={allDesigns}
               activeFamily={filterParams.family}
-              measuredFreq={postFreq}
+              measuredFreq={analyserFreq}
               sampleRate={sampleRate}
               cutoffFrequency={filterParams.cutoffFrequency}
               rippleDb={filterParams.rippleDb}

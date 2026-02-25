@@ -2,8 +2,7 @@
 import { useRef, useEffect, useCallback } from "react";
 
 interface Props {
-  preData: Float32Array;
-  postData: Float32Array;
+  analyserData: Float32Array;
   width?: number;
   height?: number;
 }
@@ -12,13 +11,11 @@ const COLORS = {
   bg: "#0f0f1a",
   grid: "#1a1a3e",
   gridText: "#667",
-  input: "#00d4ff",
-  output: "#ff6b6b",
+  analyser: "#00d4ff",
 };
 
 export function TimeDomainPlot({
-  preData,
-  postData,
+  analyserData,
   width = 600,
   height = 250,
 }: Props) {
@@ -80,19 +77,16 @@ export function TimeDomainPlot({
       ctx.stroke();
     };
 
-    drawWaveform(preData, COLORS.input);
-    drawWaveform(postData, COLORS.output);
+    drawWaveform(analyserData, COLORS.analyser);
 
     // Labels
     ctx.font = "11px monospace";
-    ctx.fillStyle = COLORS.input;
-    ctx.fillText("● Input", 10, 16);
-    ctx.fillStyle = COLORS.output;
-    ctx.fillText("● Output", 75, 16);
+    ctx.fillStyle = COLORS.analyser;
+    ctx.fillText("● Signal", 10, 16);
 
     ctx.fillStyle = COLORS.gridText;
     ctx.fillText("TIME DOMAIN", width - 100, 16);
-  }, [preData, postData, width, height]);
+  }, [analyserData, width, height]);
 
   useEffect(() => {
     draw();
