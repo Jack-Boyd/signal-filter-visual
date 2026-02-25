@@ -6,6 +6,7 @@ export interface FilterParams {
   type: "lowpass" | "highpass";
   order: number;
   cutoffFrequency: number;
+  rippleDb: number;
 }
 
 export interface SignalParams {
@@ -16,7 +17,16 @@ export interface SignalParams {
 
 export type Complex = { re: number; im: number };
 
-export interface BiquadSection {
-  Q: number;
-  isFirstOrder: boolean;
+export interface SOSSection {
+  b: [number, number, number];
+  a: [number, number, number];
+}
+
+export interface FilterDesignResult {
+  poles: Complex[];
+  zeros: Complex[];
+  sos: SOSSection[];
+  frequencies: Float64Array;
+  magnitudeDb: Float64Array;
+  phase: Float64Array;
 }

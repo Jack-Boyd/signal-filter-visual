@@ -1,23 +1,27 @@
-// src/App.tsx
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { AudioEngine } from "./audio/audioEngine";
-import {
-  computeFrequencyResponse,
-  getZPlanePolesAndZeros,
-} from "./audio/butterworth";
+import { designFilter } from "./audio/filterDesign";
 import { TimeDomainPlot } from "./components/TimeDomainPlot";
 import { FrequencyDomainPlot } from "./components/FrequencyDomainPlot";
-import { PoleZeroPlot } from "./components/PoleZeroPlot";
+import { ZPlanePlot } from "./components/ZPlanePlot";
 import { ControlPanel } from "./components/ControlPanel";
 import { useAnimationFrame } from "./hooks/useAnimationFrame";
-import type { FilterParams, SignalParams } from "./types";
+import type {
+  FilterParams,
+  FilterFamily,
+  SignalParams,
+  FilterDesignResult,
+} from "./types";
 import "./App.css";
 
+const FAMILIES: FilterFamily[] = ["butterworth", "chebyshev", "bessel"];
+
 const DEFAULT_FILTER: FilterParams = {
-  family: 'butterworth',
+  family: "butterworth",
   type: "lowpass",
   order: 4,
   cutoffFrequency: 1000,
+  rippleDb: 1,
 };
 
 const DEFAULT_SIGNAL: SignalParams = {
@@ -32,7 +36,6 @@ export default function App() {
   const [filterParams, setFilterParams] = useState(DEFAULT_FILTER);
   const [signalParams, setSignalParams] = useState(DEFAULT_SIGNAL);
 
-  // Live data state
   const [preTime, setPreTime] = useState<Float32Array<ArrayBufferLike>>(
     () => new Float32Array(2048)
   );
@@ -43,20 +46,32 @@ export default function App() {
     () => new Uint8Array(1024)
   );
 
-  const sampleRate = engineRef.current?.sampleRate ?? 48000;
+  const sampleRate = engineRef.current?.sampleRate ?? 44100;
 
-  // Theoretical computations (pure math, no audio needed)
-  const freqResponse = useMemo(
-    () => computeFrequencyResponse(filterParams, sampleRate, 1024),
-    [filterParams, sampleRate]
+  // Design all three families with shared order/type/cutoff
+  const allDesigns = useMemo(() => {
+    const results: { family: FilterFamily; result: FilterDesignResult }[] =
+      [];
+    for (const family of FAMILIES) {
+      const params: FilterParams = {
+        ...filterParams,
+        family,
+      };
+      results.push({
+        family,
+        result: designFilter(params, sampleRate, 2048),
+      });
+    }
+    return results;
+  }, [filterParams, sampleRate]);
+
+  const activeDesign = useMemo(
+    () =>
+      allDesigns.find((d) => d.family === filterParams.family)?.result ??
+      allDesigns[0].result,
+    [allDesigns, filterParams.family]
   );
 
-  const poleZero = useMemo(
-    () => getZPlanePolesAndZeros(filterParams, sampleRate),
-    [filterParams, sampleRate]
-  );
-
-  // Animation loop for reading analyser data
   useAnimationFrame(() => {
     const engine = engineRef.current;
     if (!engine) return;
@@ -103,17 +118,21 @@ export default function App() {
     [isRunning]
   );
 
-  // Restart source if signal type changes while running
   useEffect(() => {
     if (isRunning && engineRef.current) {
       engineRef.current.stop();
       engineRef.current.start(signalParams, filterParams);
     }
-    // Only re-trigger on signal type change
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signalParams.type]);
 
-  // Cleanup
+  useEffect(() => {
+    if (isRunning && engineRef.current) {
+      engineRef.current.updateFilterParams(filterParams);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterParams.family]);
+
   useEffect(() => {
     return () => engineRef.current?.destroy();
   }, []);
@@ -125,12 +144,55 @@ export default function App() {
           <ControlPanel
             filterParams={filterParams}
             signalParams={signalParams}
+            sampleRate={sampleRate}
             isRunning={isRunning}
             onFilterChange={handleFilterChange}
             onSignalChange={handleSignalChange}
             onToggle={handleToggle}
           />
+
+          <div className="info-card">
+            <h3>Filter Properties</h3>
+            <div className="info-row">
+              <span
+                className="dot"
+                style={{ background: "#ffd93d" }}
+              />
+              <div>
+                <strong>Butterworth</strong>
+                <p>Maximally flat passband. No ripple.</p>
+              </div>
+            </div>
+            <div className="info-row">
+              <span
+                className="dot"
+                style={{ background: "#f472b6" }}
+              />
+              <div>
+                <strong>Chebyshev I</strong>
+                <p>
+                  Steeper rolloff. Trades passband ripple (
+                  {filterParams.rippleDb.toFixed(1)} dB) for
+                  sharpness.
+                </p>
+              </div>
+            </div>
+            <div className="info-row">
+              <span
+                className="dot"
+                style={{ background: "#4ade80" }}
+              />
+              <div>
+                <strong>Bessel</strong>
+                <p>
+                  Maximally flat group delay. Best transient
+                  response, gentlest rolloff.
+                </p>
+              </div>
+            </div>
+          </div>
         </aside>
+
         <main>
           <div className="plot-row">
             <TimeDomainPlot
@@ -140,29 +202,35 @@ export default function App() {
               height={220}
             />
           </div>
+
           <div className="plot-row">
             <FrequencyDomainPlot
-              theoreticalMagnitude={freqResponse.magnitudeDb}
-              theoreticalFrequencies={freqResponse.frequencies}
+              traces={allDesigns}
+              activeFamily={filterParams.family}
               measuredFreq={postFreq}
               sampleRate={sampleRate}
               cutoffFrequency={filterParams.cutoffFrequency}
+              rippleDb={filterParams.rippleDb}
               width={620}
-              height={250}
+              height={280}
             />
           </div>
+
           <div className="plot-row">
-            <PoleZeroPlot
-              poles={poleZero.poles}
-              zeros={poleZero.zeros}
-              width={260}
+            <ZPlanePlot
+              traces={allDesigns}
+              activeFamily={filterParams.family}
+              width={620}
               height={260}
             />
           </div>
-<div className="stats-row">
+
+          <div className="stats-row">
             <div className="stat-card">
               <span className="stat-label">Order</span>
-              <span className="stat-value">{filterParams.order}</span>
+              <span className="stat-value">
+                {filterParams.order}
+              </span>
               <span className="stat-sub">
                 {Math.floor(filterParams.order / 2) +
                   (filterParams.order % 2)}{" "}
@@ -185,14 +253,17 @@ export default function App() {
                   filterParams.family.slice(1)}
               </span>
               <span className="stat-sub">
-                {filterParams.type} · {filterParams.cutoffFrequency} Hz
+                {filterParams.type} ·{" "}
+                {filterParams.cutoffFrequency} Hz
               </span>
             </div>
             <div className="stat-card">
               <span className="stat-label">Poles</span>
-              <span className="stat-value">{poleZero.poles.length}</span>
+              <span className="stat-value">
+                {activeDesign.poles.length}
+              </span>
               <span className="stat-sub">
-                Zeros: {poleZero.zeros.length}
+                Zeros: {activeDesign.zeros.length}
               </span>
             </div>
           </div>

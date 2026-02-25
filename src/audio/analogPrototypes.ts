@@ -1,10 +1,6 @@
 // src/audio/analogPrototypes.ts
 import type { Complex } from "../types";
 
-/**
- * Butterworth: poles equally spaced on unit circle (LHP only).
- * Already -3dB normalized (|H(j·1)| = 1/√2 by definition).
- */
 export function butterworthPoles(order: number): Complex[] {
   const poles: Complex[] = [];
   for (let k = 0; k < order; k++) {
@@ -14,13 +10,6 @@ export function butterworthPoles(order: number): Complex[] {
   return poles;
 }
 
-/**
- * Chebyshev Type I: equiripple in passband.
- * Poles lie on an ellipse in the s-plane.
- *
- * Returns poles normalized so the PASSBAND EDGE is at ω=1.
- * Caller must rescale for -3dB normalization.
- */
 export function chebyshevPoles(
   order: number,
   rippleDb: number
@@ -37,22 +26,12 @@ export function chebyshevPoles(
     });
   }
 
-  // Scale factor to convert passband-edge normalization → -3dB normalization
-  // ω_3dB = ω_p · cosh((1/N) · acosh(1/ε))
   const scale = Math.cosh((1 / order) * Math.acosh(1 / eps));
 
   return { poles, passbandToDb3Scale: scale };
 }
 
-/**
- * Bessel (Thomson): maximally flat group delay.
- *
- * Pre-computed poles from reverse Bessel polynomial roots,
- * normalized to unit group delay at ω=0. We then rescale
- * so the -3dB point lands at ω=1.
- */
 export function besselPoles(order: number): Complex[] {
-  // Group-delay-normalized poles and corresponding -3dB frequencies
   const DATA: Record<
     number,
     { poles: Complex[]; omega3dB: number }
@@ -136,7 +115,6 @@ export function besselPoles(order: number): Complex[] {
   const entry = DATA[order];
   if (!entry) return DATA[2]!.poles;
 
-  // Rescale so -3dB point is at ω = 1
   const scale = entry.omega3dB;
   return entry.poles.map((p) => ({
     re: p.re / scale,

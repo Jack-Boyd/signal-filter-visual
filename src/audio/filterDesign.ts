@@ -43,6 +43,7 @@ function getAnalogPoles(
         order,
         rippleDb
       );
+      // Rescale from passband-edge normalization → −3 dB at ω = 1
       return poles;
     }
 
