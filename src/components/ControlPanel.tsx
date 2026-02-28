@@ -150,7 +150,7 @@ export function ControlPanel({
           <input
             type="range"
             min={20}
-            max={Math.floor(sampleRate * 0.45)}
+            max={Math.floor(sampleRate * 0.5)}
             step={10}
             value={filterParams.cutoffFrequency}
             onChange={(e) =>

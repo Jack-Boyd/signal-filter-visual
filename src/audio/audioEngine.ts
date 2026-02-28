@@ -31,7 +31,6 @@ export class AudioEngine {
 
     this.workletNode = new AudioWorkletNode(this.ctx, "filter-processor");
 
-    // preAnalyser -> worklet -> postAnalyser -> masterGain -> destination
     this.workletNode.connect(this.analyser);
     this.analyser.connect(this.masterGain);
     this.masterGain.connect(this.ctx.destination);
