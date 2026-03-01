@@ -13,7 +13,7 @@ export function butterworthPoles(order: number): Complex[] {
 export function chebyshevPoles(
   order: number,
   rippleDb: number
-): { poles: Complex[]; passbandToDb3Scale: number } {
+): Complex[] {
   const eps = Math.sqrt(Math.pow(10, rippleDb / 10) - 1);
   const mu = (1 / order) * Math.asinh(1 / eps);
 
@@ -26,9 +26,7 @@ export function chebyshevPoles(
     });
   }
 
-  const scale = Math.cosh((1 / order) * Math.acosh(1 / eps));
-
-  return { poles, passbandToDb3Scale: scale };
+  return poles;
 }
 
 export function besselPoles(order: number): Complex[] {
